@@ -6,12 +6,18 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.MessageFormat;
 
+import javax.sql.DataSource;
+
 import org.apache.commons.io.FilenameUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hsqldb.Server;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.stereotype.Component;
+
+import com.dsc.demo.hsqldb.dao.HsqldbDAO;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -20,6 +26,9 @@ import jakarta.annotation.PreDestroy;
 public class HsqldbServer {
 	
 	private final static Logger LOGGER = LogManager.getLogger(HsqldbServer.class);
+	
+	@Autowired
+	private HsqldbDAO dao;
 	
 	@Value("${application.datasource.hsqldb.url}")
 	private String url;
@@ -57,8 +66,21 @@ public class HsqldbServer {
         this.hsqlServer.setDatabasePath(0, MessageFormat.format("file:{0}/ans.db;user={1};password={2}", this.completePath, this.username, this.password));
         this.hsqlServer.start();
 		
+        this.setDataSource();
+        
 		LOGGER.info("HSQLDB server started");
 		
+	}
+	
+	private void setDataSource() {
+		final DataSource dataSource = DataSourceBuilder
+			.create()
+			.username(this.username)
+			.password(this.password)
+			.url(this.url)
+			.driverClassName(this.driver)
+			.build();
+		this.dao.setDataSource(dataSource);
 	}
 	
 	@PreDestroy
