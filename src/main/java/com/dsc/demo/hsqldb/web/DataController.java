@@ -24,8 +24,7 @@ private static final Logger LOGGER = LogManager.getLogger(DataController.class);
 	private DataService service;
 	
 	@GetMapping(path = "/count/{dbms}")
-	public ResponseEntity<Object> count(@PathVariable("dbms") String dbms) {
-		final Object response = null;
+	public ResponseEntity<Void> count(@PathVariable("dbms") String dbms) {
 		HttpStatus status = HttpStatus.OK;
 		
 		try {
@@ -35,7 +34,21 @@ private static final Logger LOGGER = LogManager.getLogger(DataController.class);
 			status = HttpStatus.INTERNAL_SERVER_ERROR;
 		}
 
-		return ResponseEntity.status(status).body(response);
+		return ResponseEntity.status(status).build();
+	}
+	
+	@GetMapping(path = "/insert/{dbms}")
+	public ResponseEntity<Void> insert(@PathVariable("dbms") String dbms) {
+		HttpStatus status = HttpStatus.OK;
+		
+		try {
+			this.service.insert(dbms);
+		} catch (final Exception e) {
+			LOGGER.info(e.getMessage());
+			status = HttpStatus.INTERNAL_SERVER_ERROR;
+		}
+
+		return ResponseEntity.status(status).build();
 	}
 	
 }
