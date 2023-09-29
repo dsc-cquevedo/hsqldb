@@ -3,6 +3,7 @@ package com.dsc.demo.hsqldb.services;
 import static java.time.temporal.ChronoUnit.MILLIS;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -37,7 +38,7 @@ public class DataService {
 	@Value("${application.files.path}")
 	private String filesPath;
 	
-	public void count(String dbms) throws Exception {
+	public void count(String dbms) {
 		LOGGER.info(MessageFormat.format("DBMS: {0} ", dbms));
 		final LocalTime init = LocalTime.now();
 		
@@ -47,35 +48,38 @@ public class DataService {
 		LOGGER.info(MessageFormat.format("Duration Total {0} seconds", MILLIS.between(init, end)/(double)1000));
 	}
 	
-	public void insert(String dbms) throws Exception {
+	public void insert(String dbms) {
 		LOGGER.info(MessageFormat.format("DBMS: {0} ", dbms));
 		final LocalTime init = LocalTime.now();
 		
 		final Path path = Paths.get(MessageFormat.format("{0}/{1}", this.filesPath, "bp_track.csv"));
-		final BufferedReader reader = Files.newBufferedReader(path);
-		final CSVParser parser = CSVParser.parse(reader, CSVFormat.Builder.create().setDelimiter(',').build());
-		final Iterator<CSVRecord> iterator = parser.iterator();
-		final List<List<String>> rows = new ArrayList<>();
-		boolean header = true;
-		final int commitSize = 10000;
-		while (iterator.hasNext()) {
-			final CSVRecord csvRecord = iterator.next();
-			if ( !header ) {
-				final List<String> row = new ArrayList<>();
-				for (int i = 0; i < csvRecord.size(); i++) {
-					row.add(csvRecord.get(i).trim());
+		try (final BufferedReader reader = Files.newBufferedReader(path)){
+			final CSVParser parser = CSVParser.parse(reader, CSVFormat.Builder.create().setDelimiter(',').build());
+			final Iterator<CSVRecord> iterator = parser.iterator();
+			final List<List<String>> rows = new ArrayList<>();
+			boolean header = true;
+			final int commitSize = 10000;
+			while (iterator.hasNext()) {
+				final CSVRecord csvRecord = iterator.next();
+				if ( !header ) {
+					final List<String> row = new ArrayList<>();
+					for (int i = 0; i < csvRecord.size(); i++) {
+						row.add(csvRecord.get(i).trim());
+					}
+					rows.add(row);
+					
+					if ( rows.size() == commitSize ) {
+						this.sendToPersist(dbms, rows);
+					}
 				}
-				rows.add(row);
-				
-				if ( rows.size() == commitSize ) {
-					this.sendToPersist(dbms, rows);
-				}
+				header = false;
 			}
-			header = false;
-		}
-		
-		if ( rows.size() > 0 ) {
-			this.sendToPersist(dbms, rows);
+			
+			if ( rows.size() > 0 ) {
+				this.sendToPersist(dbms, rows);
+			}
+		} catch (final IOException e) {
+			LOGGER.error(e);
 		}
 		
 		final LocalTime end = LocalTime.now();
