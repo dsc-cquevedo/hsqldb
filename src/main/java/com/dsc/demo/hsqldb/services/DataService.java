@@ -57,6 +57,7 @@ public class DataService {
 		final Iterator<CSVRecord> iterator = parser.iterator();
 		final List<List<String>> rows = new ArrayList<>();
 		boolean header = true;
+		final int commitSize = 10000;
 		while (iterator.hasNext()) {
 			final CSVRecord csvRecord = iterator.next();
 			if ( !header ) {
@@ -65,14 +66,25 @@ public class DataService {
 					row.add(csvRecord.get(i).trim());
 				}
 				rows.add(row);
+				
+				if ( rows.size() == commitSize ) {
+					this.sendToPersist(dbms, rows);
+				}
 			}
 			header = false;
 		}
 		
-		(dbms.equals("H2") ? this.h2DAO : this.hsqldbDAO).insert(rows);
+		if ( rows.size() > 0 ) {
+			this.sendToPersist(dbms, rows);
+		}
 		
 		final LocalTime end = LocalTime.now();
 		LOGGER.info(MessageFormat.format("Duration Total {0} seconds", MILLIS.between(init, end)/(double)1000));
+	}
+
+	private void sendToPersist(String dbms, List<List<String>> rows) {
+		(dbms.equals("H2") ? this.h2DAO : this.hsqldbDAO).insert(rows);
+		rows.clear();
 	}
 
 }
